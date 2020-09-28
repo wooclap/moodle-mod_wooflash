@@ -24,7 +24,7 @@
 defined('MOODLE_INTERNAL') || die;
 
 if ($ADMIN->fulltree) {
-    $defaultBaseUrl = 'https://backend.wooflash.com';
+    $defaultBaseUrl = 'https://api.wooflash.com';
     $settings->add(new admin_setting_heading('wooflash/config', get_string('wooflashsettings', 'wooflash'), ''));
     $settings->add(new admin_setting_configtext_with_maxlength(
         'wooflash/accesskeyid',

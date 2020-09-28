@@ -157,7 +157,7 @@ function wooflash_get_instance($id) {
 function wooflash_get_create_url() {
     $baseurl = get_config('wooflash', 'baseurl');
     $hastrailingslash = substr($baseurl, -1) === '/';
-    return $baseurl . ($hastrailingslash ? '' : '/') . 'api/moodle/courses';
+    return $baseurl . ($hastrailingslash ? '' : '/') . 'api/moodle/courses/';
 }
 
 /**
@@ -166,7 +166,7 @@ function wooflash_get_create_url() {
 function wooflash_get_courses_list_url() {
     $baseurl = get_config('wooflash', 'baseurl');
     $hastrailingslash = substr($baseurl, -1) === '/';
-    return $baseurl . ($hastrailingslash ? '' : '/') . 'api/moodle/courses';
+    return $baseurl . ($hastrailingslash ? '' : '/') . 'api/moodle/courses/';
 }
 
 /**
