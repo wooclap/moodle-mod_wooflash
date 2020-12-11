@@ -50,6 +50,7 @@ $string['gradeupdateok'] = 'Grade update successful';
 $string['gradeupdatefailed'] = 'Grade update failed';
 $string['customcompletion'] = 'Completion state updated only by Wooflash';
 $string['customcompletiongroup'] = 'Wooflash custom completion';
+$string['wooflashredirect'] = 'You will be redirected to Wooflash. If this does not happen automatically, click on this link to continue.';
 
 /* Capabilities */
 $string['wooflash:view'] = 'Access a Wooflash activity';

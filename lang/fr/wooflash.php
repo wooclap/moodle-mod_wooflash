@@ -50,6 +50,7 @@ $string['gradeupdateok'] = 'Mise à jour de la note effectuée avec succès';
 $string['gradeupdatefailed'] = 'La mise à jour de la note a échoué';
 $string['customcompletion'] = 'Suivi d\'achèvement mis à jour uniquement par Wooflash';
 $string['customcompletiongroup'] = 'Conditions de suivi d\'achèvement Wooflash';
+$string['wooflashredirect'] = 'Vous allez être redirigé vers Wooflash. Si cela ne se fait pas automatiquement, cliquez sur ce lien afin de continuer.';
 
 /* Capabilities */
 $string['wooflash:view'] = 'Accéder à une activité Wooflash';

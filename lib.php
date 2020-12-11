@@ -423,14 +423,7 @@ function wooflash_get_isotime() {
  * @param string $src
  */
 function wooflash_frame_view($src) {
-    echo '<iframe
-            id="contentframe"
-            height="100%" width="100%"
-            style="margin: 0; padding: 0; border: 0; position: fixed; top: 0; left: 0;"
-            src="' . $src . '"
-            webkitallowfullscreen mozallowfullscreen allowfullscreen
-          >
-          </iframe>';
+    echo '<script>window.location.href = "' . $src . '";</script><a href="' . $src . '">'.get_string('wooflashredirect', 'wooflash').'</a>';
 }
 
 /**
