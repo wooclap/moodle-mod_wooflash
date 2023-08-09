@@ -82,8 +82,8 @@ class mod_wooflash_mod_form extends moodleform_mod {
             $mform->setDefault('quiz', $quizid);
         }
 
-        // Fetch a list of the user's Wooflash courses from the Wooflash API
-        // ...so that the user can choose to copy an existing course.
+        // Fetch a list of the user's Wooflash events from the Wooflash API
+        // ...so that the user can choose to copy an existing event.
         $ts = wooflash_get_isotime();
         try {
             $accesskeyid = get_config('wooflash', 'accesskeyid');
@@ -91,7 +91,7 @@ class mod_wooflash_mod_form extends moodleform_mod {
             echo $exc->getMessage();
         }
         try {
-            $coursesListUrl = wooflash_get_courses_list_url();
+            $eventsListUrl = wooflash_get_events_list_url();
         } catch (Exception $exc) {
             echo $exc->getMessage();
         }
@@ -99,22 +99,20 @@ class mod_wooflash_mod_form extends moodleform_mod {
         $data_token = [
             'accessKeyId' => $accesskeyid,
             'email' => $USER->email,
-            'firstName' => $USER->firstname,
-            'lastName' => $USER->lastname,
-            'moodleUserId' => intval($USER->id),
+            'moodleUsername' => $USER->username,
             'ts' => $ts,
             'version' => get_config('mod_wooflash')->version,
         ];
 
         $curl_data = new StdClass;
+        $curl_data->moodleUsername = $USER->username;
         $curl_data->accessKeyId = $accesskeyid;
-        $curl_data->moodleUserId = intval($USER->id);
         $curl_data->email = $USER->email;
         $curl_data->firstName = $USER->firstname;
         $curl_data->lastName = $USER->lastname;
         $curl_data->ts = $ts;
         $curl_data->token = wooflash_generate_token(
-            'COURSES_LIST?' . wooflash_http_build_query($data_token)
+            'EVENTS_LIST_V3?' . wooflash_http_build_query($data_token)
         );
         $curl_data->version = get_config('mod_wooflash')->version;
 
@@ -124,29 +122,29 @@ class mod_wooflash_mod_form extends moodleform_mod {
         $headers[1] = "X-Wooflash-PluginVersion: " . get_config('mod_wooflash')->version;
         $curl->setHeader($headers);
         $response = $curl->get(
-            $coursesListUrl . '?' . wooflash_http_build_query($curl_data)
+            $eventsListUrl . '?' . wooflash_http_build_query($curl_data)
         );
         $curlinfo = $curl->info;
 
-        $wooflash_courses = [];
-        $wooflash_courses['none'] = get_string('none');
+        $wooflash_events = [];
+        $wooflash_events['none'] = get_string('none');
         if ($response && is_array($curlinfo) && $curlinfo['http_code'] == 200) {
-            foreach (json_decode($response) as $w_course) {
-                $wooflash_courses[$w_course->_id] = $w_course->name;
+            foreach (json_decode($response) as $w_event) {
+                $wooflash_events[$w_event->_id] = $w_event->name;
             }
 
         } else {
-            print_error('error-couldnotloadcourses', 'wooflash');
+            print_error('error-couldnotloadevents', 'wooflash');
         }
 
         $mform->addElement(
             'select',
-            'wooflashcourseid',
-            get_string('wooflashcourseid', 'wooflash'),
-            $wooflash_courses
+            'wooflasheventid',
+            get_string('wooflasheventid', 'wooflash'),
+            $wooflash_events
         );
-        $mform->setType('wooflashcourseid', PARAM_TEXT);
-        $mform->setDefault('wooflashcourseid', 'none');
+        $mform->setType('wooflasheventid', PARAM_TEXT);
+        $mform->setDefault('wooflasheventid', 'none');
 
         // Set default options.
         $this->standard_coursemodule_elements();

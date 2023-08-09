@@ -25,6 +25,8 @@
 
 defined('MOODLE_INTERNAL') || die();
 
+require_once $CFG->dirroot . '/question/format/xml/format.php';
+
 class qformat_wooflash extends qformat_xml {
     /**
      * Do the export
@@ -35,8 +37,8 @@ class qformat_wooflash extends qformat_xml {
     public function exportprocess($checkcapabilities = true) {
         global $CFG, $OUTPUT, $DB, $USER;
 
-        // Get the questions (from database) in this category
-        // ...only get q's with no parents (no cloze subquestions specifically).
+        // get the questions (from database) in this category
+        // only get q's with no parents (no cloze subquestions specifically)
         if ($this->category) {
             $questions = get_questions_category($this->category, true);
         } else {
@@ -45,18 +47,18 @@ class qformat_wooflash extends qformat_xml {
 
         $count = 0;
 
-        // Results are first written into string (and then to a file)
-        // ...so create/initialize the string here.
+        // results are first written into string (and then to a file)
+        // so create/initialize the string here
         $expout = "";
 
-        // Track which category questions are in
-        // ...if it changes we will record the category change in the output
-        // ...file if selected. 0 means that it will get printed before the 1st question.
+        // track which category questions are in
+        // if it changes we will record the category change in the output
+        // file if selected. 0 means that it will get printed before the 1st question
         $trackcategory = 0;
 
-        // Iterate through questions.
+        // iterate through questions
         foreach ($questions as $question) {
-            // Used by file API.
+            // used by file api
             $contextid = $DB->get_field(
                 'question_categories',
                 'contextid',
@@ -64,17 +66,17 @@ class qformat_wooflash extends qformat_xml {
             );
             $question->contextid = $contextid;
 
-            // Do not export hidden questions.
+            // do not export hidden questions
             if (!empty($question->hidden)) {
                 continue;
             }
 
-            // Do not export random questions.
+            // do not export random questions
             if ($question->qtype == 'random') {
                 continue;
             }
 
-            // Check if we need to record category change.
+            // check if we need to record category change
             if ($this->cattofile) {
                 if ($question->category != $trackcategory) {
                     $trackcategory = $question->category;
@@ -82,7 +84,7 @@ class qformat_wooflash extends qformat_xml {
                         $trackcategory, $this->contexttofile
                     );
 
-                    // Create 'dummy' question for category export.
+                    // create 'dummy' question for category export
                     $dummyquestion = new stdClass();
                     $dummyquestion->qtype = 'category';
                     $dummyquestion->category = $categoryname;
@@ -94,7 +96,7 @@ class qformat_wooflash extends qformat_xml {
                 }
             }
 
-            // Export the question displaying message.
+            // export the question displaying message
             $count++;
 
             if (question_has_capability_on($question, 'view', $question->category)) {
@@ -102,7 +104,7 @@ class qformat_wooflash extends qformat_xml {
             }
         }
 
-        // Final pre-process on exported data.
+        // final pre-process on exported data
         $expout = $this->presave_process($expout);
         return $expout;
     }

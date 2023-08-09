@@ -18,14 +18,67 @@
 
 defined('MOODLE_INTERNAL') || die;
 
-function xmldb_wooflash_upgrade($oldversion) {
-    global $CFG, $DB;
+require_once __DIR__ .  '/../locallib.php';
+
+function xmldb_wooflash_upgrade($oldversion)
+{
+    global $CFG, $DB, $OUTPUT;
 
     require_once $CFG->libdir . '/db/upgradelib.php';
 
     $dbman = $DB->get_manager();
 
-    // Doc: https://docs.moodle.org/dev/XMLDB_creating_new_DDL_functions
+    if ($oldversion < 2023080900) {
+        // PART 1 of the V3 upgrade.
+        // Perform the two V3_UPGRADE_STEPs with Wooflash
+        // so that Wooflash can use the username as identifier instead of the ids.
+        // - V3_UPGRADE_STEP_1 will return the list of moodle user ids that have a wooflash account.
+        // - V3_UPGRADE_STEP_2 will send a mapping from those ids to the moodle usernames to Wooflash.
+
+        try {
+          $accesskeyid = get_config('wooflash', 'accesskeyid');
+          $secretaccesskey = get_config('wooflash', 'secretaccesskey');
+          $configbaseurl = get_config('wooflash', 'baseurl');
+        } catch (Exception $exc) {
+          echo $exc->getMessage();
+        }
+        // Check that plugin is configured.
+        if (!empty($accesskeyid) && !empty($secretaccesskey) && !empty($accesskeyid)) {
+            mod_wooflash_v3_upgrade();
+        } else {
+            echo $OUTPUT->notification(get_string('warn-missing-config-during-upgrade-to-v3', 'wooflash'), 'notifyproblem');
+        }
+
+        // PART 2 of the V3 upgrade.
+        // Upgrade existing wooflash activity records
+        // linkedwooflasheventslug must be added
+        // editUrl of existing activities must be updated -> /v3/.
+
+        $table = new xmldb_table('wooflash');
+        $fieldslug = new xmldb_field('linkedwooflasheventslug', XMLDB_TYPE_TEXT, 'medium', null, null, null, null, null, null);
+
+        if (!$dbman->field_exists($table, $fieldslug)) {
+            $dbman->add_field($table, $fieldslug);
+        }
+
+        // Upgrade existing wooflash activity records.
+        $allwooflashrecords = $DB->get_records('wooflash');
+        foreach ($allwooflashrecords as $activity) {
+            if (!$activity->linkedwooflasheventslug) {
+                $regexMatches = '';
+                $slugregex = '/^(.+)\/api\/moodle\/courses\/([^\/]+)\/(.*)$/i';
+                if (preg_match($slugregex, $activity->editurl, $regexMatches)) {
+                    $baseurl = $regexMatches[1];
+                    $eventSlug = $regexMatches[2];
+                    $activity->editurl = $baseurl . '/api/moodle/v3/' . $eventSlug . '/join';
+                    $activity->linkedwooflasheventslug = $eventSlug;
+                    $DB->update_record('wooflash', $activity);
+                }
+            }
+        }
+
+        upgrade_mod_savepoint(true, 2023080900, 'wooflash');
+    }
 
     return true;
 }

@@ -21,6 +21,11 @@
  * @package mod_wooflash
  * @copyright  2018 CBlue sprl
  * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
+ *
+ *
+ * @see https://github.com/moodle/moodle/blob/master/mod/lesson/lib.php#L1693
+ * @see https://github.com/moodle/moodle/blob/master/mod/resource/lib.php#L207
+ * @see https://docs.moodle.org/dev/Module_visibility_and_display for more info.
  */
 
 defined('MOODLE_INTERNAL') || die;
@@ -29,8 +34,6 @@ global $CFG;
 require_once $CFG->dirroot . '/mod/wooflash/classes/wooflash_curl.php';
 require_once $CFG->dirroot . '/question/editlib.php';
 require_once $CFG->dirroot . '/question/export_form.php';
-require_once $CFG->dirroot . '/question/format.php';
-require_once $CFG->dirroot . '/question/format/xml/format.php';
 require_once $CFG->dirroot . '/mod/wooflash/format.php';
 
 /**
@@ -39,6 +42,7 @@ require_once $CFG->dirroot . '/mod/wooflash/format.php';
  */
 function wooflash_supports($feature) {
     switch ($feature) {
+        case FEATURE_BACKUP_MOODLE2:
         case FEATURE_COMPLETION_HAS_RULES:
         case FEATURE_GRADE_HAS_GRADE:
         case FEATURE_GROUPINGS:
@@ -46,7 +50,6 @@ function wooflash_supports($feature) {
         case FEATURE_MOD_INTRO:
         case FEATURE_SHOW_DESCRIPTION:
             return true;
-        case FEATURE_BACKUP_MOODLE2:
         case FEATURE_COMPLETION_TRACKS_VIEWS:
         case FEATURE_GRADE_OUTCOMES:
             return false;
@@ -104,7 +107,7 @@ function wooflash_update_instance($data) {
     $activity->quiz = $data->quiz;
     $activity->timecreated = $wooflash->timecreated;
     $activity->timemodified = time();
-    $activity->wooflashcourseid = $data->wooflashcourseid;
+    $activity->wooflasheventid = $data->wooflasheventid;
     $DB->update_record('wooflash', $activity);
 
     wooflash_grade_item_update($wooflash);
@@ -131,7 +134,7 @@ function wooflash_add_instance($data) {
     $activity->authorid = $USER->id;
     $activity->timecreated = time();
     $activity->timemodified = $activity->timecreated;
-    $activity->wooflashcourseid = $data->wooflashcourseid;
+    $activity->wooflasheventid = $data->wooflasheventid;
     $activity->id = $DB->insert_record('wooflash', $activity);
 
     return $activity->id;
@@ -157,16 +160,16 @@ function wooflash_get_instance($id) {
 function wooflash_get_create_url() {
     $baseurl = get_config('wooflash', 'baseurl');
     $hastrailingslash = substr($baseurl, -1) === '/';
-    return $baseurl . ($hastrailingslash ? '' : '/') . 'api/moodle/courses/';
+    return $baseurl . ($hastrailingslash ? '' : '/') . 'api/moodle/v3/events';
 }
 
 /**
  * @return string
  */
-function wooflash_get_courses_list_url() {
+function wooflash_get_events_list_url() {
     $baseurl = get_config('wooflash', 'baseurl');
     $hastrailingslash = substr($baseurl, -1) === '/';
-    return $baseurl . ($hastrailingslash ? '' : '/') . 'api/moodle/courses/';
+    return $baseurl . ($hastrailingslash ? '' : '/') . 'api/moodle/v3/events_list';
 }
 
 /**
@@ -175,7 +178,7 @@ function wooflash_get_courses_list_url() {
 function wooflash_get_ping_url() {
     $baseurl = get_config('wooflash', 'baseurl');
     $hastrailingslash = substr($baseurl, -1) === '/';
-    return $baseurl . ($hastrailingslash ? '' : '/') . 'api/moodle/ping';
+    return $baseurl . ($hastrailingslash ? '' : '/') . 'api/moodle/v3/ping';
 }
 
 /**
@@ -223,6 +226,12 @@ function wooflash_check_activity_user_access($courseid, $cmid, $userid) {
 function wooflash_redirect_auth($userid) {
     global $DB, $SESSION;
 
+    wooflash_ask_consent_if_not_given();
+
+    if (!wooflash_isValidCallbackUrl($SESSION->wooflash_callback)) {
+        print_error('error-invalid-callback-url', 'wooflash');
+    }
+
     if (!isset($SESSION->wooflash_courseid) || !isset($SESSION->wooflash_cmid) || !isset($SESSION->wooflash_callback)) {
         print_error('error-missingparameters', 'wooflash');
         header("HTTP/1.0 401");
@@ -239,41 +248,63 @@ function wooflash_redirect_auth($userid) {
     }
 
     $role = wooflash_get_role($course_context);
-    $canEdit = $role == 'teacher';
     $ts = wooflash_get_isotime();
     $hasAccess = wooflash_check_activity_user_access($SESSION->wooflash_courseid, $SESSION->wooflash_cmid, $userid);
 
     $data_token = [
         'accessKeyId' => $accesskeyid,
-        'canEdit' => $canEdit,
-        'email' => $userdb->email,
-        'firstName' => $userdb->firstname,
         'hasAccess' => $hasAccess,
-        'id' => $activity->id,
-        'lastName' => $userdb->lastname,
-        'moodleUserId' => $userdb->id,
+        'moodleUsername' => $userdb->username,
+        'role' => $role,
         'ts' => $ts,
         'version' => get_config('mod_wooflash')->version,
+        'wooflashEventSlug' => $activity->linkedwooflasheventslug,
     ];
 
     $data = [
-        'accessKeyId' => $accesskeyid,
-        'canEdit' => $canEdit,
-        'email' => $userdb->email,
+        'moodleUsername' => $userdb->username,
+        'displayName' => $userdb->firstname . ' ' . $userdb->lastname,
         'firstName' => $userdb->firstname,
-        'hasAccess' => $hasAccess,
-        'id' => $activity->id,
         'lastName' => $userdb->lastname,
-        'moodleUserId' => $userdb->id,
+        // Only add the email if the user has consented
+        'email' => $SESSION->hasConsented ? $userdb->email : '',
         'role' => $role,
-        'token' => wooflash_generate_token('JOIN?' . wooflash_http_build_query($data_token)),
+        'hasAccess' => $hasAccess,
+        'accessKeyId' => $accesskeyid,
         'ts' => $ts,
+        'token' => wooflash_generate_token('AUTHv3?' . wooflash_http_build_query($data_token)),
         'version' => get_config('mod_wooflash')->version,
+        'wooflashEventSlug' => $activity->linkedwooflasheventslug,
     ];
 
     $callback_url = wooflash_validate_callback_url($SESSION->wooflash_callback);
 
     redirect($callback_url . '?' . wooflash_http_build_query($data));
+}
+
+/**
+ * @throws moodle_exception
+ */
+function wooflash_ask_consent_if_not_given($redirectUrl = null, $role = null) {
+    global $CFG, $DB, $SESSION;
+
+    $showConsentScreen = get_config('wooflash', 'showconsentscreen');
+
+    // Consider that consent has been obtained otherwise if the consent screen
+    // is not shown or if it's a teacher.
+    if (!$showConsentScreen || $role == 'teacher') {
+        $SESSION->hasConsented = true;
+    }
+
+    // If the user has not consented yet, redirect them to the consent screen.
+    if (!isset($SESSION->hasConsented)) {
+        redirect(
+            new moodle_url(
+                '/mod/wooflash/wooflash_consent_screen.php',
+                ['redirectUrl' => $redirectUrl]
+            )
+        );
+    }
 }
 
 /**
@@ -368,7 +399,33 @@ function wooflash_update_grade($wooflashinstance, $userid, $gradeval, $completio
 
     $grade = new stdClass();
     $grade->userid = $userid;
-    $grade->rawgrade = $gradeval;
+
+    // Depending on the maximum grade value, we should adapt the grade
+    // Wooflash grades are based on 100.
+
+    // 1 - trying to fetch the max grade from the course itself
+    $params = [
+        'courseid' => $wooflashinstance->course,
+        'itemtype' => 'mod',
+        'itemmodule' => 'wooflash',
+        'iteminstance' => $wooflashinstance->id,
+        'itemnumber' => 0
+    ];
+    if ($grade_item = grade_item::fetch($params)) {
+        $maxgrade = $grade_item->grademax;
+    }
+
+    // 2 - if nothing defined, trying from the global configuration
+    if (!$maxgrade) {
+        $maxgrade = (int)get_config('core', 'gradepointdefault');
+    }
+
+    // 3 - else hardcode to 100
+    if(!$maxgrade) {
+        $maxgrade = 100;
+    }
+
+    $grade->rawgrade = ($gradeval * $maxgrade) / 100;
 
     $status = grade_update(
         'mod/wooflash',
@@ -414,16 +471,43 @@ function wooflash_update_grade($wooflashinstance, $userid, $gradeval, $completio
  * @return string
  */
 function wooflash_get_isotime() {
-    $date = new datetime();
-    $date->setTimezone(new DateTimeZone('Etc/Zulu'));
+    $date = new \DateTime("now", new \DateTimeZone("UTC"));
     return $date->format('Y-m-d\TH:i:s\Z');
 }
 
 /**
- * @param string $src
+ * @param string $src The Wooflash link will be shown inside the iframe block
+ * @param bool $noHtmlBlock If true, it will show the content without the HTML
+ * block. Only the iframe. This value is usually defined as true by the
+ * observer.php:course_module_created method.
+ *
+ * We have noticed that in some Moodle instances (e.g our Bitnami staging
+ * environment), the teacher is not redirected to the activity URL when clicking
+ * on "Save and display". Instead, they stay on "/course/modedit.php" and the
+ * iframe is injected onto that page.
+ *
+ * To avoid having multiple <html /> element on the page, we have to add this
+ * parameter.
  */
-function wooflash_frame_view($src) {
-    echo '<script>window.location.href = "' . $src . '";</script><a href="' . $src . '">'.get_string('wooflashredirect', 'wooflash').'</a>';
+function wooflash_frame_view($src, $noHtmlBlock=false) {
+
+    $iframe = '<script>window.location.href = "' . $src . '";</script><a href="' . $src . '">'.get_string('wooflashredirect', 'wooflash').'</a>';
+
+    if ($noHtmlBlock) {
+        echo $iframe;
+    } else {
+        echo '<html lang="en">
+    <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+    <title>Wooflash</title>
+</head>
+<body>
+' . $iframe . '
+  </body>
+  </html>';
+    }
 }
 
 /**
@@ -489,31 +573,46 @@ function wooflash_grade_item_update($wooflashinstance, $grades = null) {
  * @param stdClass $coursemodule The coursemodule object (record).
  * @return cached_cm_info An object on information that the courses
  *                        will know about (most noticeably, an icon).
+ *
+ * @see https://github.com/wooflash/moodle-mod_wooflash/issues/1#issuecomment-957577514
  */
-// See: https://github.com/moodle/moodle/blob/master/mod/lesson/lib.php#L1693
-// See: https://github.com/moodle/moodle/blob/master/mod/resource/lib.php#L207
-// See: https://docs.moodle.org/dev/Module_visibility_and_display for more info.
-function wooflash_get_coursemodule_info($cm) {
-    global $CFG;
+function wooflash_get_coursemodule_info($coursemodule) {
+    global $DB;
+
+    $dbparams = ['id' => $coursemodule->instance];
+    $fields = 'id, name, intro, introformat';
+    if (!$wooflash = $DB->get_record('wooflash', $dbparams, $fields)) {
+        return false;
+    }
 
     $info = new cached_cm_info();
+    $info->name = $wooflash->name;
 
-    $fullurl = "$CFG->wwwroot/mod/wooflash/view.php?id=$cm->id&amp;redirect=1";
+    if ($coursemodule->showdescription) {
+        // Convert intro to html. Do not filter cached version, filters run at display time.
+        $info->content = format_module_intro('wooflash', $wooflash, $coursemodule->id, false);
+    }
+
+    $url = new moodle_url('/mod/wooflash/view.php', ['id' => $coursemodule->id, 'redirect' => 1]);
+    $fullurl = $url->out();
     $info->onclick = "window.open('$fullurl'); return false;";
 
     return $info;
 }
 
 /**
- * Function to read all questions for quiz into big array
+ * Get questions from database shema before the Moodle V4 version
+ * Warning: From V4 version, questions table structure has changed
  *
- * @param int $quiz quiz id
+ * @param $quiz_id Quiz Id
+ *
+ * @return array List of questions from a quiz
  */
-function wooflash_get_questions_quiz($quiz, $export = true) {
+function wooflash_load_questions_before_v4($quiz_id){
     global $DB;
 
     // Fetch the quiz slots.
-    $quiz_slots = $DB->get_records('quiz_slots', ['quizid' => $quiz]);
+    $quiz_slots = $DB->get_records('quiz_slots', ['quizid' => $quiz_id]);
     // Create an array with all the question ids.
     $question_ids = array_map(
         function ($elem) {
@@ -523,6 +622,72 @@ function wooflash_get_questions_quiz($quiz, $export = true) {
     );
     // Get the list of questions for the quiz.
     $questions = $DB->get_records_list('question', 'id', $question_ids);
+
+    return $questions;
+}
+
+/**
+ * Get questions from database shema after the Moodle V4 version
+ * Warning: From V4 version, questions table structure has changed
+ *
+ * @param $quiz_id Quiz Id
+ *
+ * @return array List of questions from a quiz
+ */
+function wooflash_load_questions_for_v4($quiz_id){
+    global $DB;
+
+    $questions = $DB->get_records_sql('
+                        SELECT
+                            q.*,
+                            qbe.questioncategoryid AS category
+                        FROM
+                            {quiz_slots} qs
+                                INNER JOIN {question_references} qr
+                                    ON  qs.id = qr.itemid
+                                    AND qr.component = :component
+                                    AND qr.questionarea = :questionarea
+                                INNER JOIN {question_bank_entries} qbe
+                                    ON qr.questionbankentryid = qbe.id
+                                INNER JOIN {question_versions} qv
+                                    ON qbe.id = qv.questionbankentryid
+                                    AND qv.version  = (
+                                                        SELECT MAX(version)
+                                                        FROM {question_versions}
+                                                        WHERE  questionbankentryid = qv.questionbankentryid
+                                                    )
+                                INNER JOIN {question} q
+                                    ON qv.questionid = q.id
+                        WHERE
+                            qs.quizid = :quizid',
+                        [
+                            'component' => 'mod_quiz',
+                            'questionarea' => 'slot',
+                            'quizid' => $quiz_id
+                        ]
+                    );
+    return $questions;
+}
+
+/**
+ * Function to read all questions for quiz into big array
+ *
+ * @param int $quiz quiz id
+ */
+function wooflash_get_questions_quiz($quiz, $export = true) {
+
+    $branch = get_config('moodle', 'branch');
+    $questions = null;
+
+    // Get the list of questions for the quiz.
+    // When Moodle version is < v4
+    if(strnatcmp($branch, '400') == -1) {
+        $questions = wooflash_load_questions_before_v4($quiz);
+    }
+    // When Moodle version is >= v4
+    else {
+        $questions = wooflash_load_questions_for_v4($quiz);
+    }
 
     // Iterate through questions, getting stuff we need.
     $qresults = array();
@@ -539,4 +704,15 @@ function wooflash_get_questions_quiz($quiz, $export = true) {
     }
 
     return $qresults;
+}
+
+/**
+ * Check if the callback url is safe and known
+ * @param string $callbackUrl
+ * @return bool
+ */
+function wooflash_isValidCallbackUrl($callbackUrl)
+{
+    $baseurl = trim(get_config('wooflash', 'baseurl'), '/');
+    return $callbackUrl != null && strpos($callbackUrl, $baseurl) === 0;
 }

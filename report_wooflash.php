@@ -27,57 +27,7 @@
 // ...and we authenticate request with a token
 // @codingStandardsIgnoreLine
 require_once __DIR__ . '/../../config.php';
-require_once $CFG->dirroot . '/mod/wooflash/lib.php';
-require_once $CFG->dirroot . '/lib/completionlib.php';
 
-$cmid = required_param('cm', PARAM_INT);
-$userid = required_param('moodleUserId', PARAM_INT);
-$completion = required_param('completion', PARAM_TEXT);
-$score = required_param('score', PARAM_FLOAT);
-$accessKeyId = required_param('accessKeyId', PARAM_TEXT);
-$ts = required_param('ts', PARAM_TEXT);
-$token = required_param('token', PARAM_TEXT);
-$callback = optional_param('callbackUrl', '', PARAM_URL);
-
-try {
-    $data_token = [
-        'accessKeyId' => get_config('wooflash', 'accesskeyid'),
-        'completion' => $completion,
-        'moodleUserId' => $userid,
-        'score' => $score,
-        'ts' => $ts,
-    ];
-    $token_calc = wooflash_generate_token('REPORT?' . wooflash_http_build_query($data_token));
-
-    if ($token === $token_calc) {
-        if ($completion == 'passed') {
-            $completion_param = COMPLETION_COMPLETE_PASS;
-        } else if ($completion == 'incomplete') {
-            $completion_param = COMPLETION_INCOMPLETE;
-        } else {
-            $completion_param = COMPLETION_COMPLETE_FAIL;
-        }
-
-        $cm = get_coursemodule_from_id('wooflash', $cmid);
-        $course = get_course($cm->course);
-        $wooflashinstance = wooflash_get_instance($cm->instance);
-
-        $gradestatus = wooflash_update_grade($wooflashinstance, $userid, $score, $completion_param);
-        if ($gradestatus == GRADE_UPDATE_OK) {
-            $callback_message = get_string('gradeupdateok', 'wooflash');
-        } else {
-            $callback_message = get_string('gradeupdatefailed', 'wooflash');
-        }
-
-        $completion = new completion_info($course);
-        $completion->update_state($cm, $completion_param, $userid);
-    } else {
-        print_error('error-invalidtoken', 'wooflash');
-        header("HTTP/1.0 403");
-    }
-    if ($callback) {
-        redirect($callback, $callback_message);
-    }
-} catch (Exception $e) {
-    print_error('error-couldnotupdatereport', 'wooflash');
-}
+// Deprecated in favor of report_wooflash_v3.php.
+print_error('error-reportdeprecated', 'wooflash');
+header("HTTP/1.0 400");

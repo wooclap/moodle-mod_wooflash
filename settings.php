@@ -53,6 +53,12 @@ if ($ADMIN->fulltree) {
         50,
         256
     ));
+    $settings->add(new admin_setting_configcheckbox(
+        'wooflash/showconsentscreen',
+        get_string('showconsentscreen', 'wooflash'),
+        get_string('showconsentscreen-description', 'wooflash'),
+        false
+    ));
 
     if (class_exists('mod_wooflash_test_connection')) {
         $settings->add(new mod_wooflash_test_connection('wooflash/testconnection', get_string('testconnection', 'wooflash'), ''));

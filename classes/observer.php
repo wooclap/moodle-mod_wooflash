@@ -93,7 +93,7 @@ class mod_wooflash_observer {
             $quiz_file = $qformat->exportprocess();
         }
 
-        // Prepare data for call to the Wooflash CREATE webservice.
+        // Prepare data for call to the Wooflash CREATEv3 webservice.
         $trainer = $DB->get_record('user', ['id' => $USER->id]);
 
         $auth_url = $CFG->wwwroot
@@ -105,8 +105,19 @@ class mod_wooflash_observer {
         . $event->objectid;
 
         $report_url = $CFG->wwwroot
-        . '/mod/wooflash/report_wooflash.php?cm='
+        . '/mod/wooflash/report_wooflash_v3.php?cm='
         . $event->objectid;
+
+        grade_update(
+            'mod/wooflash',
+            $event->courseid,
+            'mod',
+            'wooflash',
+            $wooflash->id,
+            0,
+            null,
+            ['itemname' => $wooflash->name]
+        );
 
         $displayName = $trainer->firstname . ' ' . $trainer->lastname;
         $firstName = $trainer->firstname;
@@ -116,7 +127,7 @@ class mod_wooflash_observer {
         try {
             $accesskeyid = get_config('wooflash', 'accesskeyid');
         } catch (Exception $exc) {
-            echo "<h1>Missing AccesKeyId parameter</h1>";
+            echo "<h1>Missing AccessKeyId parameter</h1>";
             echo $exc->getMessage();
 
             // Delete the newly created Wooflash activity.
@@ -142,20 +153,14 @@ class mod_wooflash_observer {
             'accessKeyId' => $accesskeyid,
             'authUrl' => $auth_url,
             'courseUrl' => $course_url,
-            'email' => $trainer->email,
-            'firstName' => $firstName,
-            'id' => $event->other['instanceid'],
-            'lastName' => $lastName,
-            'moodleUserId' => $trainer->id,
+            'moodleUsername' => $trainer->username,
             'name' => $event->other['name'],
             'reportUrl' => $report_url,
             'ts' => $ts,
             'version' => get_config('mod_wooflash')->version,
-            'wooflashcourseid' => $wooflash->wooflashcourseid,
         ];
 
         $curl_data = new StdClass;
-        $curl_data->id = $event->other['instanceid'];
         $curl_data->name = $wooflash->name;
 
         $curl_data->description = isset($wooflash->intro)
@@ -163,23 +168,30 @@ class mod_wooflash_observer {
         : '';
 
         $curl_data->quiz = isset($quiz_file) ? $quiz_file : '';
-        $curl_data->moodleUserId = intval($USER->id);
+        $curl_data->moodleUsername = $USER->username;
+        $curl_data->displayName = $displayName;
         $curl_data->firstName = $firstName;
         $curl_data->lastName = $lastName;
         $curl_data->email = $trainer->email;
         $curl_data->authUrl = $auth_url;
         $curl_data->courseUrl = $course_url;
         $curl_data->reportUrl = $report_url;
-        $curl_data->wooflashcourseid = $wooflash->wooflashcourseid;
         $curl_data->accessKeyId = $accesskeyid;
         $curl_data->ts = $ts;
 
+        // For compatibility reason, only add wooflasheventid to the data_token
+        // ...when it is actually used.
+        if (isset($wooflash->wooflasheventid) && $wooflash->wooflasheventid != 'none') {
+            $data_token['wooflasheventid'] = $wooflash->wooflasheventid;
+            $curl_data->wooflasheventid = $wooflash->wooflasheventid;
+        }
+
         $curl_data->token = wooflash_generate_token(
-            'CREATE?' . wooflash_http_build_query($data_token)
+            'CREATEv3?' . wooflash_http_build_query($data_token)
         );
         $curl_data->version = get_config('mod_wooflash')->version;
 
-        // Call the Wooflash CREATE webservice.
+        // Call the Wooflash CREATEv3 webservice.
         $curl = new wooflash_curl();
         $headers = [];
         $headers[0] = "Content-Type: application/json";
@@ -189,7 +201,7 @@ class mod_wooflash_observer {
         $curlinfo = $curl->info;
 
         if (!$response || !is_array($curlinfo) || $curlinfo['http_code'] !== 200) {
-            echo "<h1>Error during CREATE Wooflash API call</h1>";
+            echo "Error during CREATEv3 Wooflash API call";
             // If CREATE call ends in error, delete this instance.
             wooflash_delete_instance($event->other['instanceid']);
             return;
@@ -200,46 +212,54 @@ class mod_wooflash_observer {
             'wooflash',
             ['id' => $event->other['instanceid']]
         );
-        $activity->editurl = $response;
+
+        $response_data = json_decode($response);
+
+        $activity->editurl = $response_data->viewUrl;
+        $activity->linkedwooflasheventslug = $response_data->wooflashEventSlug;
         $DB->update_record('wooflash', $activity);
 
         $role = wooflash_get_role(context_course::instance($cm->course));
         $canEdit = $role == 'teacher';
 
-        // Make a JOIN Wooflash API call to view Wooflash event in an iframe.
+        // Make a JOINv3 Wooflash API call to view Wooflash event in an iframe.
         $ts = wooflash_get_isotime();
         $data_token = [
             'accessKeyId' => $accesskeyid,
+            'authUrl' => $auth_url,
             'canEdit' => $canEdit,
-            'email' => $trainer->email,
-            'firstName' => $firstName,
-            'hasAccess' => 1,
-            'id' => $activity->id,
-            'lastName' => $lastName,
-            'moodleUserId' => $trainer->id,
+            'courseUrl' => $course_url,
+            'moodleUsername' => $trainer->username,
+            'reportUrl' => $report_url,
             'ts' => $ts,
             'version' => get_config('mod_wooflash')->version,
+            'wooflashEventSlug' => $activity->linkedwooflasheventslug,
         ];
         $token = wooflash_generate_token(
-            'JOIN?' . wooflash_http_build_query($data_token)
+            'JOINv3?' . wooflash_http_build_query($data_token)
         );
         $data_frame = [
             'accessKeyId' => $accesskeyid,
+            'authUrl' => $auth_url,
             'canEdit' => $canEdit,
+            'courseUrl' => $course_url,
+            'displayName' => $displayName,
             'email' => $trainer->email,
             'firstName' => $firstName,
-            'hasAccess' => 1,
-            'id' => $activity->id,
             'lastName' => $lastName,
-            'moodleUserId' => $trainer->id,
+            'moodleUsername' => $trainer->username,
+            'reportUrl' => $report_url,
             'role' => $role,
             'token' => $token,
             'ts' => $ts,
             'version' => get_config('mod_wooflash')->version,
+            'wooflashEventSlug' => $activity->linkedwooflasheventslug,
+            'showConsentScreen' => get_config('wooflash', 'showconsentscreen'),
         ];
 
         wooflash_frame_view(
-            $response . '?' . wooflash_http_build_query($data_frame)
+            $response_data->viewUrl . '?' . wooflash_http_build_query($data_frame),
+            true
         );
     }
 }

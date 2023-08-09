@@ -74,40 +74,61 @@ if (is_object($cm) && is_object($wooflash)) {
 
         $role = wooflash_get_role(context_course::instance($cm->course));
         $canEdit = $role == 'teacher';
-        $hasAccess = wooflash_check_activity_user_access($cm->course, $cm->id, $USER->id);
-        $wooflashuserid = $USER->id;
+
+        wooflash_ask_consent_if_not_given($PAGE->url, $role);
+
+        $auth_url = $CFG->wwwroot
+        . '/mod/wooflash/auth_wooflash.php?id='
+        . $wooflash->id
+        . '&course='
+        . $cm->course
+        . '&cm='
+        . $cm->id;
+
+        $report_url = $CFG->wwwroot
+        . '/mod/wooflash/report_wooflash_v3.php?cm='
+        . $cm->id;
+
+        $course_url = $CFG->wwwroot
+        . '/course/view.php?id='
+        . $cm->course;
 
         $data_token = [
             'accessKeyId' => $accesskeyid,
+            'authUrl' => $auth_url,
             'canEdit' => $canEdit,
-            'email' => $USER->email,
-            'firstName' => $USER->firstname,
-            'hasAccess' => $hasAccess,
-            'id' => $wooflash->id,
-            'lastName' => $USER->lastname,
-            'moodleUserId' => $wooflashuserid,
+            'courseUrl' => $course_url,
+            'moodleUsername' => $USER->username,
+            'reportUrl' => $report_url,
             'ts' => $ts,
             'version' => get_config('mod_wooflash')->version,
+            'wooflashEventSlug' => $wooflash->linkedwooflasheventslug,
         ];
-        $token = wooflash_generate_token('JOIN?' . wooflash_http_build_query($data_token));
+        $token = wooflash_generate_token('JOINv3?' . wooflash_http_build_query($data_token));
 
         $data_frame = [
             'accessKeyId' => $accesskeyid,
+            'authUrl' => $auth_url,
             'canEdit' => $canEdit,
-            'email' => $USER->email,
+            'courseUrl' => $course_url,
+            'displayName' => $USER->firstname . ' ' . $USER->lastname,
+            // Only add the email if the user has consented.
+            'email' => $SESSION->hasConsented ? $USER->email : '',
             'firstName' => $USER->firstname,
-            'hasAccess' => $hasAccess,
-            'id' => $wooflash->id,
+            'hasAccess' => wooflash_check_activity_user_access($cm->course, $cm->id, $USER->id),
             'lastName' => $USER->lastname,
-            'moodleUserId' => $wooflashuserid,
+            'moodleUsername' => $USER->username,
+            'reportUrl' => $report_url,
             'role' => $role,
             'token' => $token,
             'ts' => $ts,
             'version' => get_config('mod_wooflash')->version,
+            'wooflashEventSlug' => $wooflash->linkedwooflasheventslug,
+            'showConsentScreen' => get_config('wooflash', 'showconsentscreen'),
         ];
 
         wooflash_frame_view($wooflash->editurl . '?' . wooflash_http_build_query($data_frame));
     }
 } else {
-    print_error('error-nocourseid', 'wooflash');
+    print_error('error-noeventid', 'wooflash');
 }

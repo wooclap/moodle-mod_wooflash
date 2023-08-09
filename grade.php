@@ -36,11 +36,11 @@ require_login($course, false, $cm);
 $course_context = context_course::instance($cm->course);
 $role = wooflash_get_role($course_context);
 
-// For now, redirect both student and teacher to the same page.
+// For now, redirect both student and teacher to the same page
 
 if ($role == 'student') {
     redirect('view.php?id=' . $id);
 } else {
-    // We assume that $role == 'teacher'.
+    // $role == 'teacher'
     redirect('view.php?id=' . $id);
 }

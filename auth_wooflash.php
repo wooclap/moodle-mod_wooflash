@@ -26,13 +26,17 @@
 // No login check is expected here because this script checks the login itself
 // @codingStandardsIgnoreLine
 require_once __DIR__ . '/../../config.php';
-require_once $CFG->dirroot . '/mod/wooflash/lib.php';
+require_once __DIR__ . '/lib.php';
 
 global $SESSION, $USER;
 
 $courseid = required_param('course', PARAM_INT);
 $cmid = required_param('cm', PARAM_INT);
 $callback = required_param('callback', PARAM_URL);
+
+if (!wooflash_isValidCallbackUrl($callback)) {
+    print_error('error-invalid-callback-url', 'wooflash');
+}
 
 if (isset($USER) && is_object($USER)) {
     $authUser = $USER;
@@ -54,11 +58,7 @@ try {
             'callback' => $callback,
         ];
         // Cannot use new moodle_url because of http_build_query RFC constant.
-        $SESSION->wooflash_wantsurl = 'https://' .
-        $_SERVER['HTTP_HOST'] .
-        $_SERVER['PHP_SELF'] .
-        '?' .
-        wooflash_http_build_query($data);
+        $SESSION->wooflash_wantsurl = 'https://' . $_SERVER['HTTP_HOST'] . $_SERVER['PHP_SELF'] . '?' . wooflash_http_build_query($data);
 
         redirect($CFG->wwwroot . '/login/index.php');
     } else {
