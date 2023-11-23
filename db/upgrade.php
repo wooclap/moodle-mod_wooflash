@@ -76,8 +76,20 @@ function xmldb_wooflash_upgrade($oldversion)
                 }
             }
         }
+    }
 
-        upgrade_mod_savepoint(true, 2023080900, 'wooflash');
+    if ($oldversion < 2023112304) {
+        $table = new xmldb_table('wooflash');
+        $newfieldId = new xmldb_field('wooflasheventid', XMLDB_TYPE_TEXT, 'medium', null, null, null, null, null, null);
+        $oldfieldId = new xmldb_field('wooflashcourseid', XMLDB_TYPE_TEXT, 'medium', null, null, null, null, null, null);
+
+        if ($dbman->field_exists($table, $oldfieldId) && !$dbman->field_exists($table, $newfieldId)) {
+            $dbman->rename_field($table, $oldfieldId, 'wooflasheventid');
+        } elseif (!$dbman->field_exists($table, $newfieldId)) {
+            $dbman->add_field($table, $newfieldId);
+        }
+
+        upgrade_mod_savepoint(true, 2023112304, 'wooflash');
     }
 
     return true;
