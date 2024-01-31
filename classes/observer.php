@@ -65,6 +65,8 @@ class mod_wooflash_observer {
     }
 
     /**
+     * This function is triggered when creating content, either from the 'new activity' page, 
+     * or via the 'duplicate' option in the dropdown of an existing activity.
      * @param \core\event\course_module_created $event
      * @throws coding_exception
      * @throws dml_exception
@@ -186,6 +188,16 @@ class mod_wooflash_observer {
             $curl_data->wooflasheventid = $wooflash->wooflasheventid;
         }
 
+        // During the duplication flow, the 'wooflasheventid' parameter is used to know what content to duplicate.
+        // Therefore, we set the 'wooflasheventid' parameter to the 'linkedwooflasheventslug' value when duplicating from the dropdown.
+        // This is done because the dropdown does not have access to the 'wooflasheventid' parameter.
+        // The 'new activity' page does an HTTP GET request to fetch the user's Wooflash events, 
+        // and therefore has access to the 'wooflasheventid' parameter.
+        if (isset($wooflash->linkedwooflasheventslug)) {
+            $data_token['wooflasheventid'] = $wooflash->linkedwooflasheventslug;
+            $curl_data->wooflasheventid = $wooflash->linkedwooflasheventslug;
+        }
+
         $curl_data->token = wooflash_generate_token(
             'CREATEv3?' . wooflash_http_build_query($data_token)
         );
@@ -215,8 +227,9 @@ class mod_wooflash_observer {
 
         $response_data = json_decode($response);
 
-        $activity->editurl = $response_data->viewUrl;
+        // Creating an activity sets the activity's 'linkedwooflasheventslug', which is the Wooflash course ID.
         $activity->linkedwooflasheventslug = $response_data->wooflashEventSlug;
+        $activity->editurl = $response_data->viewUrl;
         $DB->update_record('wooflash', $activity);
 
         $role = wooflash_get_role(context_course::instance($cm->course));
@@ -257,9 +270,14 @@ class mod_wooflash_observer {
             'showConsentScreen' => get_config('wooflash', 'showconsentscreen'),
         ];
 
-        wooflash_frame_view(
-            $response_data->viewUrl . '?' . wooflash_http_build_query($data_frame),
-            true
-        );
+        // Do not display frame view when duplicating an activity from the dropdown.
+        // Moodle only expects HTML when duplicating from the modal (-> redirect to iframe view of Wooflash) 
+        // The 'linkedwooflasheventslug' parameter is only set when duplicating from the dropdown.
+        if (!isset($wooflash->linkedwooflasheventslug)) {
+            wooflash_frame_view(
+                $response_data->viewUrl . '?' . wooflash_http_build_query($data_frame),
+                true
+            );
+        }
     }
 }
