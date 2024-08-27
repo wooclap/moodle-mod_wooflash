@@ -68,7 +68,10 @@ try {
         $gradestatus = wooflash_update_grade($wooflashinstance, $userdb->id, $score, $completion_param);
 
         $completion = new completion_info($course);
-        $completion->update_state($cm, $completion_param, $userdb->id);
+
+        // In any cases we set the completion state to complete.
+        // The simple rule is: if the user answered at least 1 question, he is considered as complete regardless of the score.
+        $completion->update_state($cm, COMPLETION_COMPLETE, $userdb->id);
     } else {
         print_error('error-invalidtoken', 'wooflash');
         header("HTTP/1.0 403");
