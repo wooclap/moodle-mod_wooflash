@@ -33,7 +33,6 @@ defined('MOODLE_INTERNAL') || die;
 global $CFG;
 require_once $CFG->dirroot . '/mod/wooflash/classes/wooflash_curl.php';
 require_once $CFG->dirroot . '/question/editlib.php';
-require_once $CFG->dirroot . '/question/export_form.php';
 require_once $CFG->dirroot . '/mod/wooflash/format.php';
 
 /**
