@@ -130,5 +130,5 @@ if (is_object($cm) && is_object($wooflash)) {
         wooflash_frame_view($wooflash->editurl . '?' . wooflash_http_build_query($data_frame));
     }
 } else {
-    print_error('error-noeventid', 'wooflash');
+    throw new \moodle_exception('error-noeventid', 'wooflash');
 }

@@ -109,9 +109,9 @@ function mod_wooflash_v3_upgrade()
         $curlinfo = $curl->info;
 
         if (!$response || !is_array($curlinfo) || $curlinfo['http_code'] != 200) {
-            print_error('error-couldnotperformv3upgradestep2', 'wooflash');
+            throw new \moodle_exception('error-couldnotperformv3upgradestep2', 'wooflash');
         }
     } else {
-        print_error('error-couldnotperformv3upgradestep1', 'wooflash');
+        throw new \moodle_exception('error-couldnotperformv3upgradestep1', 'wooflash');
     }
 }

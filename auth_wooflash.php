@@ -35,7 +35,7 @@ $cmid = required_param('cm', PARAM_INT);
 $callback = required_param('callback', PARAM_URL);
 
 if (!wooflash_isValidCallbackUrl($callback)) {
-    print_error('error-invalid-callback-url', 'wooflash');
+    throw new \moodle_exception('error-invalid-callback-url', 'wooflash');
 }
 
 if (isset($USER) && is_object($USER)) {
@@ -47,7 +47,7 @@ if (isset($SESSION)) {
     $SESSION->wooflash_cmid = $cmid;
     $SESSION->wooflash_callback = $callback;
 } else {
-    print_error('error-auth-nosession', 'wooflash');
+    throw new \moodle_exception('error-auth-nosession', 'wooflash');
 }
 
 try {
@@ -65,5 +65,5 @@ try {
         wooflash_redirect_auth($authUser->id);
     }
 } catch (Exception $exc) {
-    print_error('error-couldnotredirect', 'wooflash');
+    throw new \moodle_exception('error-couldnotredirect', 'wooflash');
 }

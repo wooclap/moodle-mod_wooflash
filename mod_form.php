@@ -134,7 +134,7 @@ class mod_wooflash_mod_form extends moodleform_mod {
             }
 
         } else {
-            print_error('error-couldnotloadevents', 'wooflash');
+            throw new \moodle_exception('error-couldnotloadevents', 'wooflash');
         }
 
         $mform->addElement(
