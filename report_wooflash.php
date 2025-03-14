@@ -29,5 +29,5 @@
 require_once __DIR__ . '/../../config.php';
 
 // Deprecated in favor of report_wooflash_v3.php.
-print_error('error-reportdeprecated', 'wooflash');
+throw new \moodle_exception('error-reportdeprecated', 'wooflash');
 header("HTTP/1.0 400");

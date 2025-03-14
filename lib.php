@@ -228,11 +228,11 @@ function wooflash_redirect_auth($userid) {
     wooflash_ask_consent_if_not_given();
 
     if (!wooflash_isValidCallbackUrl($SESSION->wooflash_callback)) {
-        print_error('error-invalid-callback-url', 'wooflash');
+        throw new \moodle_exception('error-invalid-callback-url', 'wooflash');
     }
 
     if (!isset($SESSION->wooflash_courseid) || !isset($SESSION->wooflash_cmid) || !isset($SESSION->wooflash_callback)) {
-        print_error('error-missingparameters', 'wooflash');
+        throw new \moodle_exception('error-missingparameters', 'wooflash');
         header("HTTP/1.0 401");
     }
 
@@ -243,7 +243,7 @@ function wooflash_redirect_auth($userid) {
         $activity = $DB->get_record('wooflash', ['id' => $cm->instance], '*', MUST_EXIST);
         $accesskeyid = get_config('wooflash', 'accesskeyid');
     } catch (Exception $e) {
-        print_error('error-couldnotauth', 'wooflash');
+        throw new \moodle_exception('error-couldnotauth', 'wooflash');
     }
 
     $role = wooflash_get_role($course_context);
@@ -379,7 +379,7 @@ function wooflash_validate_callback_url($callback_url) {
         $callback_url = 'https://' . $callback_url;
     }
     if (!filter_var($callback_url, FILTER_VALIDATE_URL, FILTER_FLAG_PATH_REQUIRED)) {
-        print_error('error-callback-is-not-url', 'wooflash');
+        throw new \moodle_exception('error-callback-is-not-url', 'wooflash');
     }
     return $callback_url;
 }
