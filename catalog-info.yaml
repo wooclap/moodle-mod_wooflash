@@ -1,0 +1,11 @@
+apiVersion: backstage.io/v1alpha1
+kind: Component
+metadata:
+  name: moodle-mod-wooflash
+  description: "Public Moodle plugin for Wooflash (https://www.wooflash.com)"
+  annotations:
+    github.com/project-slug: wooclap/moodle-mod_wooflash
+spec:
+  type: other
+  lifecycle: production
+  owner: group:default/developers
