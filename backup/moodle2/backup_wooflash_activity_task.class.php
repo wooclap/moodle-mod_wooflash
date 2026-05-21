@@ -20,9 +20,9 @@
  * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 
-require_once __DIR__ . '/../../../../config.php';
+defined('MOODLE_INTERNAL') || die();
 
-require_once $CFG->dirroot . '/mod/wooflash/backup/moodle2/backup_wooflash_stepslib.php'; // Because it exists (must)
+require_once __DIR__ . '/backup_wooflash_stepslib.php'; // Because it exists (must)
 
 /**
  * wooflash backup task that provides all the settings and steps to perform one
