@@ -20,14 +20,14 @@
  * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 
-require_once __DIR__ . '/../../../../config.php';
+defined('MOODLE_INTERNAL') || die();
 
 /**
  * wooflash restore task that provides all the settings and steps to perform one
  * complete restore of the activity
  */
 
-require_once $CFG->dirroot . '/mod/wooflash/backup/moodle2/restore_wooflash_stepslib.php'; // Because it exists (must)
+require_once __DIR__ . '/restore_wooflash_stepslib.php'; // Because it exists (must)
 
 class restore_wooflash_activity_task extends restore_activity_task {
 

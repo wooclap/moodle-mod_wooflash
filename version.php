@@ -23,6 +23,7 @@
 
 defined('MOODLE_INTERNAL') || die;
 
-$plugin->version = 2025031400;
+$plugin->version = 2026052100;
 $plugin->requires = 2016112900;
 $plugin->component = 'mod_wooflash';
+$plugin->supported = [404, 502];
