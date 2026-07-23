@@ -563,6 +563,23 @@ function wooflash_grade_item_update($wooflashinstance, $grades = null) {
 }
 
 /**
+ * Update grades in the central gradebook.
+ *
+ * Moodle's grading API requires this companion to wooflash_grade_item_update:
+ * declaring only one of the pair triggers a debugging() warning in
+ * grade_update_mod_grades() that breaks the course reset flow (PLT-324).
+ * Grades are pushed to the gradebook directly by the Wooflash backend via
+ * wooflash_update_grade(), so there is no local store to pull from here.
+ *
+ * @param stdClass $wooflashinstance The wooflash activity record.
+ * @param int $userid Only update grade for this user (0 = all users).
+ * @param bool $nullifnone If true and no grade exists, insert a null grade.
+ */
+function wooflash_update_grades($wooflashinstance, $userid = 0, $nullifnone = true) {
+    wooflash_grade_item_update($wooflashinstance);
+}
+
+/**
  * Add a get_coursemodule_info function in case to add 'extra' information
  * for the course (see resource).
  *
@@ -706,12 +723,39 @@ function wooflash_get_questions_quiz($quiz, $export = true) {
 }
 
 /**
+ * Check whether a callback URL targets the exact host configured for Wooflash.
+ *
+ * The host is compared strictly (not as a string prefix) and the scheme must be
+ * https. This rejects look-alike hosts such as "api.wooflash.com.evil.com" that
+ * the previous prefix check accepted, which allowed the Moodle token to be sent
+ * to an attacker-controlled host (SEC-965).
+ *
+ * @param string $baseUrl the configured Wooflash base URL
+ * @param string $callbackUrl the callback URL to validate
+ * @return bool
+ */
+function wooflash_callback_matches_base_host($baseUrl, $callbackUrl) {
+    if (empty($callbackUrl) || empty($baseUrl)) {
+        return false;
+    }
+
+    $expectedhost = parse_url($baseUrl, PHP_URL_HOST);
+    $actualhost = parse_url($callbackUrl, PHP_URL_HOST);
+    $scheme = parse_url($callbackUrl, PHP_URL_SCHEME);
+
+    if (empty($expectedhost) || empty($actualhost)) {
+        return false;
+    }
+
+    return $scheme === 'https' && strcasecmp($expectedhost, $actualhost) === 0;
+}
+
+/**
  * Check if the callback url is safe and known
  * @param string $callbackUrl
  * @return bool
  */
 function wooflash_isValidCallbackUrl($callbackUrl)
 {
-    $baseurl = trim(get_config('wooflash', 'baseurl'), '/');
-    return $callbackUrl != null && strpos($callbackUrl, $baseurl) === 0;
+    return wooflash_callback_matches_base_host(get_config('wooflash', 'baseurl'), $callbackUrl);
 }
